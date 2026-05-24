@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 
 	"github.com/diploma/worker-static-analyzer/internal/model"
 )
@@ -46,7 +47,7 @@ type featuresCfg struct {
 	EnableClassification bool `json:"enable_classification"`
 }
 
-func (a *Analyzer) Run(ctx context.Context, sourceFile, workDir string) ([]model.Pattern, error) {
+func (a *Analyzer) Run(ctx context.Context, sourceFile, workDir string, cacheLineBytes int) ([]model.Pattern, error) {
 	confPath := filepath.Join(workDir, "conf.json")
 	outPath := filepath.Join(workDir, "out.json")
 
@@ -71,7 +72,12 @@ func (a *Analyzer) Run(ctx context.Context, sourceFile, workDir string) ([]model
 		return nil, fmt.Errorf("write conf.json: %w", err)
 	}
 
-	cmd := exec.CommandContext(ctx, a.binaryPath, "conf.json", "--quiet")
+	args := []string{"conf.json", "--quiet"}
+	if cacheLineBytes > 0 {
+		args = append(args, "--cache-line-bytes", strconv.Itoa(cacheLineBytes))
+	}
+
+	cmd := exec.CommandContext(ctx, a.binaryPath, args...)
 	cmd.Dir = workDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

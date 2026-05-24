@@ -1,10 +1,11 @@
 package model
 
 type StartEvent struct {
-	TaskID           string `json:"task_id"`
-	FileS3Path       string `json:"file_s3_path"`
-	ProjectID        string `json:"project_id"`
-	CacheProfileHash string `json:"cache_profile_hash"`
+	TaskID            string `json:"task_id"`
+	FileS3Path        string `json:"file_s3_path"`
+	ProjectID         string `json:"project_id"`
+	CacheProfileHash  string `json:"cache_profile_hash"`
+	CacheConfigS3Path string `json:"cache_config_s3_path,omitempty"`
 }
 
 type CompletedEvent struct {

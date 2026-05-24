@@ -41,6 +41,16 @@ func (m *MinIOClient) DownloadSource(ctx context.Context, s3Path, workDir string
 	return dst, nil
 }
 
+func (m *MinIOClient) DownloadObject(ctx context.Context, s3Path, workDir string) (string, error) {
+	bucket, object := splitS3Path(s3Path, bucketSourceCodes)
+
+	dst := filepath.Join(workDir, filepath.Base(object))
+	if err := m.client.FGetObject(ctx, bucket, object, dst, minio.GetObjectOptions{}); err != nil {
+		return "", fmt.Errorf("download %s/%s: %w", bucket, object, err)
+	}
+	return dst, nil
+}
+
 func (m *MinIOClient) UploadArtifact(ctx context.Context, taskID string, payload []byte) (string, error) {
 	if err := m.ensureBucket(ctx, bucketAnalysisArtifact); err != nil {
 		return "", err

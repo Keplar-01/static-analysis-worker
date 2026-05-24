@@ -55,7 +55,19 @@ func (uc *AnalysisUseCase) process(ctx context.Context, event model.StartEvent) 
 		return fmt.Errorf("download source: %w", err)
 	}
 
-	patterns, err := uc.analyzer.Run(ctx, sourceFile, workDir)
+	cacheLineBytes := 0
+	if event.CacheConfigS3Path != "" {
+		configPath, err := uc.minio.DownloadObject(ctx, event.CacheConfigS3Path, workDir)
+		if err != nil {
+			return fmt.Errorf("download cache config: %w", err)
+		}
+		cacheLineBytes, err = readL1CacheLineBytes(configPath)
+		if err != nil {
+			return fmt.Errorf("read L1 cache line bytes: %w", err)
+		}
+	}
+
+	patterns, err := uc.analyzer.Run(ctx, sourceFile, workDir, cacheLineBytes)
 	if err != nil {
 		return fmt.Errorf("run analyzer: %w", err)
 	}
@@ -87,4 +99,27 @@ func (uc *AnalysisUseCase) sendCompleted(ctx context.Context, taskID, status, ar
 	if err := uc.producer.Publish(ctx, kafka.TopicStaticCompleted, taskID, event); err != nil {
 		log.Printf("[usecase] failed to send completed event: %v", err)
 	}
+}
+
+func readL1CacheLineBytes(configPath string) (int, error) {
+	type cacheLevel struct {
+		CacheBlockSize int `json:"cacheBlockSize"`
+	}
+	type cacheConfig struct {
+		L1 cacheLevel `json:"l1"`
+	}
+
+	payload, err := os.ReadFile(configPath)
+	if err != nil {
+		return 0, err
+	}
+
+	var cfg cacheConfig
+	if err := json.Unmarshal(payload, &cfg); err != nil {
+		return 0, err
+	}
+	if cfg.L1.CacheBlockSize <= 0 {
+		return 0, fmt.Errorf("missing l1.cacheBlockSize")
+	}
+	return cfg.L1.CacheBlockSize, nil
 }
